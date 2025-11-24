@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21701" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21679"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Web View Controller-->
+        <scene sceneID="tne-QT-ifu">
+            <objects>
+                <viewController id="BYZ-38-t0r" customClass="WebViewController" customModule="Proskomidiya" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <wkWebView contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="webView">
+                                <rect key="frame" x="0.0" y="103" width="393" height="715"/>
+                                <wkWebViewConfiguration key="configuration">
+                                    <audiovisualMediaTypes key="mediaTypesRequiringUserActionForPlayback" none="YES"/>
+                                    <wkPreferences key="preferences"/>
+                                </wkWebViewConfiguration>
+                            </wkWebView>
+                            <progressView opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" progress="0.5" progressViewStyle="default" translatesAutoresizingMaskIntoConstraints="NO" id="progressView">
+                                <rect key="frame" x="0.0" y="103" width="393" height="2"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="2" id="progressView-height"/>
+                                </constraints>
+                            </progressView>
+                        </subviews>
+                        <viewLayoutMarginsGuide key="safeArea" id="6Tk-OE-BBY"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <constraints>
+                            <constraint firstItem="webView" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" id="webView-leading"/>
+                            <constraint firstItem="webView" firstAttribute="top" secondItem="progressView" secondAttribute="bottom" id="webView-top"/>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="webView" secondAttribute="trailing" id="webView-trailing"/>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="webView" secondAttribute="bottom" id="webView-bottom"/>
+                            <constraint firstItem="progressView" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" id="progressView-top"/>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="progressView" secondAttribute="trailing" id="progressView-trailing"/>
+                            <constraint firstItem="progressView" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" id="progressView-leading"/>
+                        </constraints>
+                    </view>
+                    <toolbarItems>
+                        <barButtonItem image="chevron.left" catalog="system" id="backButton">
+                            <connections>
+                                <action selector="backButtonTapped:" destination="BYZ-38-t0r" id="backButton-action"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem image="chevron.right" catalog="system" id="forwardButton">
+                            <connections>
+                                <action selector="forwardButtonTapped:" destination="BYZ-38-t0r" id="forwardButton-action"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem systemItem="flexibleSpace" id="flexibleSpace"/>
+                        <barButtonItem image="house" catalog="system" id="homeButton">
+                            <connections>
+                                <action selector="homeButtonTapped:" destination="BYZ-38-t0r" id="homeButton-action"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem image="arrow.clockwise" catalog="system" id="refreshButton">
+                            <connections>
+                                <action selector="refreshButtonTapped:" destination="BYZ-38-t0r" id="refreshButton-action"/>
+                            </connections>
+                        </barButtonItem>
+                    </toolbarItems>
+                    <connections>
+                        <outlet property="backButton" destination="backButton" id="backButton-outlet"/>
+                        <outlet property="forwardButton" destination="forwardButton" id="forwardButton-outlet"/>
+                        <outlet property="homeButton" destination="homeButton" id="homeButton-outlet"/>
+                        <outlet property="progressView" destination="progressView" id="progressView-outlet"/>
+                        <outlet property="refreshButton" destination="refreshButton" id="refreshButton-outlet"/>
+                        <outlet property="toolbar" destination="toolbar" id="toolbar-outlet"/>
+                        <outlet property="webView" destination="webView" id="webView-outlet"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="139" y="4"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="arrow.clockwise" catalog="system" width="128" height="123"/>
+        <image name="chevron.left" catalog="system" width="96" height="123"/>
+        <image name="chevron.right" catalog="system" width="96" height="123"/>
+        <image name="house" catalog="system" width="128" height="121"/>
+        <systemColor name="systemBackgroundColor">
+            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+    </resources>
+</document>
