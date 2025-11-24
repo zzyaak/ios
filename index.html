@@ -97,6 +97,27 @@
             color: #89621d;
             font-size: 20px;
         }
+        .anonymous-option {
+            margin: 15px 0 10px;
+            padding: 12px;
+            border: 1px dashed #bc9e3f;
+            border-radius: 10px;
+            background: #f9f4ea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: #5b4420;
+        }
+        .anonymous-option input {
+            width: 20px;
+            height: 20px;
+        }
+        .anonymous-note {
+            font-size: 14px;
+            color: #6a4a22;
+            margin-top: 6px;
+        }
         .prayer-row {
             display: grid;
             grid-template-columns: 40px 1fr 1fr;
@@ -162,6 +183,15 @@
 
             <div id="prayerEntries1"></div>
 
+            <label style="margin-top: 10px;">Конфиденциальность:</label>
+            <div class="anonymous-option">
+                <input type="checkbox" id="anonymous1">
+                <label for="anonymous1" style="margin: 0;">Подать записку анонимно</label>
+            </div>
+            <div id="anonymousNote1" class="anonymous-note" style="display: none;">
+                Записка будет подана без указания подателя.
+            </div>
+
             <div id="summary1" class="summary" style="display: none;">
                 <div>Имен к поминовению: <span id="nameCount1">0</span></div>
                 <div style="margin-top: 10px;"><strong>Итого: <span id="total1">0</span> руб.</strong></div>
@@ -199,6 +229,15 @@
 
             <div id="prayerEntries2"></div>
 
+            <label style="margin-top: 10px;">Конфиденциальность:</label>
+            <div class="anonymous-option">
+                <input type="checkbox" id="anonymous2">
+                <label for="anonymous2" style="margin: 0;">Подать записку анонимно</label>
+            </div>
+            <div id="anonymousNote2" class="anonymous-note" style="display: none;">
+                Записка будет подана без указания подателя.
+            </div>
+
             <div id="summary2" class="summary" style="display: none;">
                 <div>Имен к поминовению: <span id="nameCount2">0</span></div>
                 <div style="margin-top: 10px;"><strong>Итого: <span id="total2">0</span> руб.</strong></div>
@@ -221,6 +260,8 @@
             const nameCount = document.getElementById('nameCount' + formId);
             const total = document.getElementById('total' + formId);
             const submit = document.getElementById('submit' + formId);
+            const anonymousToggle = document.getElementById('anonymous' + formId);
+            const anonymousNote = document.getElementById('anonymousNote' + formId);
 
             let entries = [];
 
@@ -264,6 +305,10 @@
                 nameCount.textContent = filled;
                 total.textContent = totalPrice;
 
+                if (anonymousNote) {
+                    anonymousNote.style.display = anonymousToggle?.checked ? 'block' : 'none';
+                }
+
                 if (serviceLength.value && filled > 0) {
                     summary.style.display = 'block';
                     submit.disabled = false;
@@ -275,6 +320,7 @@
 
             entryCount.addEventListener('change', updateEntries);
             serviceLength.addEventListener('change', updateSummary);
+            anonymousToggle?.addEventListener('change', updateSummary);
 
             submit.addEventListener('click', () => {
                 const filled = entries.filter(e => e.name && e.nameType);
@@ -282,7 +328,8 @@
                     alert('Заполните хотя бы одно имя');
                     return;
                 }
-                alert('Запрос отправлен! Итого: ' + total.textContent + ' руб.');
+                const anonymousText = anonymousToggle?.checked ? ' (анонимно)' : '';
+                alert('Запрос отправлен' + anonymousText + '! Итого: ' + total.textContent + ' руб.');
             });
         }
 

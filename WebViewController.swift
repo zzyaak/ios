@@ -14,6 +14,7 @@ class WebViewController: UIViewController {
     private var webURL = "https://proskomidiya.ru"
     private let localHTMLFileName = "index"
     private let localHTMLFileExtension = "html"
+    private lazy var mobileEnhancementScript: String? = loadEnhancementScript()
     private var estimatedProgressObserver: NSKeyValueObservation?
     
     override func viewDidLoad() {
@@ -172,6 +173,20 @@ class WebViewController: UIViewController {
         
         webView.load(request)
     }
+
+    private func loadEnhancementScript() -> String? {
+        guard let url = Bundle.main.url(forResource: "mobile_enhancements", withExtension: "js") else {
+            print("⚠️ Файл mobile_enhancements.js не найден в Bundle")
+            return nil
+        }
+
+        do {
+            return try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            print("⚠️ Не удалось загрузить mobile_enhancements.js: \(error)")
+            return nil
+        }
+    }
     
     private func setupProgressObserver() {
         estimatedProgressObserver = webView.observe(\.estimatedProgress, options: [.new]) { [weak self] webView, _ in
@@ -232,11 +247,13 @@ extension WebViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         progressView.isHidden = true
         updateToolbarButtons()
-        
+
         // Обновляем кнопки тулбара периодически
         DispatchQueue.main.async { [weak self] in
             self?.updateToolbarButtons()
         }
+
+        injectMobileEnhancements()
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -327,6 +344,29 @@ extension WebViewController: WKNavigationDelegate {
         
         // Для других схем (tel:, mailto:, etc.) разрешаем
         decisionHandler(.allow)
+    }
+}
+
+// MARK: - Mobile Enhancements
+
+private extension WebViewController {
+    func injectMobileEnhancements() {
+        guard let script = mobileEnhancementScript, !script.isEmpty else {
+            return
+        }
+
+        webView.evaluateJavaScript(script) { result, error in
+            if let error {
+                print("⚠️ Ошибка применения мобильных улучшений: \(error)")
+                return
+            }
+
+            if let result = result {
+                print("✅ Мобильные улучшения применены: \(result)")
+            } else {
+                print("✅ Мобильные улучшения применены")
+            }
+        }
     }
 }
 
