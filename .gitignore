@@ -1,0 +1,13 @@
+# Build artifacts
+build/
+DerivedData/
+.gradle/
+
+# macOS
+.DS_Store
+
+# CocoaPods
+Pods/
+
+# User settings
+xcuserdata/

@@ -9,27 +9,30 @@ class WebViewController: UIViewController {
     @IBOutlet weak var forwardButton: UIBarButtonItem!
     @IBOutlet weak var refreshButton: UIBarButtonItem!
     @IBOutlet weak var homeButton: UIBarButtonItem!
-    
+
     private var webURL = "https://proskomidiya.ru"
     private let localHTMLFileName = "index"
     private let localHTMLFileExtension = "html"
     private lazy var mobileEnhancementScript: String? = loadEnhancementScript()
     private var estimatedProgressObserver: NSKeyValueObservation?
+    private var createdSubviewsProgrammatically = false
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         // Устанавливаем цвет фона view
         view.backgroundColor = UIColor.systemBackground
-        
-        // Проверяем, что outlets подключены
-        guard webView != nil else {
-            print("❌ ОШИБКА: webView outlet не подключен!")
+
+        // Создаём недостающие вью программно, если аутлеты не подтянуты в storyboard
+        buildFallbackSubviewsIfNeeded()
+
+        guard webView != nil, progressView != nil else {
+            print("❌ ОШИБКА: webView или progressView недоступны даже после создания — проверьте storyboard")
             return
         }
-        
+
         print("✅ WebViewController загружен, webView доступен")
-        
+
         setupWebView()
         setupNavigationBar()
         setupToolbar()
@@ -64,17 +67,71 @@ class WebViewController: UIViewController {
     }
     
     // MARK: - Setup Methods
+
+    /// Создаёт WKWebView, UIProgressView и элементы тулбара, если они не были подключены в storyboard.
+    private func buildFallbackSubviewsIfNeeded() {
+        if webView == nil {
+            let configuration = WKWebViewConfiguration()
+            configuration.allowsInlineMediaPlayback = true
+            configuration.mediaTypesRequiringUserActionForPlayback = []
+
+            let createdWebView = WKWebView(frame: .zero, configuration: configuration)
+            createdWebView.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(createdWebView)
+            webView = createdWebView
+            print("⚠️ WKWebView создан программно — проверьте аутлет в storyboard")
+            createdSubviewsProgrammatically = true
+        }
+
+        if progressView == nil {
+            let createdProgressView = UIProgressView(progressViewStyle: .default)
+            createdProgressView.translatesAutoresizingMaskIntoConstraints = false
+            createdProgressView.progressTintColor = UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0)
+            view.addSubview(createdProgressView)
+            progressView = createdProgressView
+            print("⚠️ ProgressView создан программно — проверьте аутлет в storyboard")
+            createdSubviewsProgrammatically = true
+        }
+
+        guard let webView = webView, let progressView = progressView else { return }
+
+        // Добавляем констрейнты только если создавали элементы программно (иначе они уже в storyboard)
+        if createdSubviewsProgrammatically {
+            let safeArea = view.safeAreaLayoutGuide
+            NSLayoutConstraint.activate([
+                progressView.topAnchor.constraint(equalTo: safeArea.topAnchor),
+                progressView.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+                progressView.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+                progressView.heightAnchor.constraint(equalToConstant: 2),
+
+                webView.topAnchor.constraint(equalTo: progressView.bottomAnchor),
+                webView.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+                webView.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+                webView.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
+            ])
+        }
+
+        // Создаём кнопки тулбара программно, если они не пришли из storyboard
+        if backButton == nil {
+            backButton = UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(backButtonTapped(_:)))
+        }
+        if forwardButton == nil {
+            forwardButton = UIBarButtonItem(image: UIImage(systemName: "chevron.right"), style: .plain, target: self, action: #selector(forwardButtonTapped(_:)))
+        }
+        if homeButton == nil {
+            homeButton = UIBarButtonItem(image: UIImage(systemName: "house"), style: .plain, target: self, action: #selector(homeButtonTapped(_:)))
+        }
+        if refreshButton == nil {
+            refreshButton = UIBarButtonItem(barButtonSystemItem: .refresh, target: self, action: #selector(refreshButtonTapped(_:)))
+        }
+    }
     
     private func setupWebView() {
         guard let webView = webView else {
             print("❌ ОШИБКА: webView равен nil при настройке!")
             return
         }
-        
-        let configuration = WKWebViewConfiguration()
-        configuration.allowsInlineMediaPlayback = true
-        configuration.mediaTypesRequiringUserActionForPlayback = []
-        
+
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
@@ -136,12 +193,17 @@ class WebViewController: UIViewController {
         toolbar.tintColor = UIColor.white
         toolbar.isTranslucent = false
         
-        // Set button images
-        backButton.image = UIImage(systemName: "chevron.left")
-        forwardButton.image = UIImage(systemName: "chevron.right")
-        refreshButton.image = UIImage(systemName: "arrow.clockwise")
-        homeButton.image = UIImage(systemName: "house")
-        
+        // Set button images and assemble items
+        backButton?.image = UIImage(systemName: "chevron.left")
+        forwardButton?.image = UIImage(systemName: "chevron.right")
+        refreshButton?.image = UIImage(systemName: "arrow.clockwise")
+        homeButton?.image = UIImage(systemName: "house")
+
+        let flexibleSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let items = [backButton, forwardButton, flexibleSpace, homeButton, refreshButton].compactMap { $0 }
+        setToolbarItems(items, animated: false)
+        toolbar.setItems(items, animated: false)
+
         updateToolbarButtons()
     }
     
@@ -193,28 +255,30 @@ class WebViewController: UIViewController {
     }
     
     private func setupProgressObserver() {
+        guard let webView = webView else { return }
         estimatedProgressObserver = webView.observe(\.estimatedProgress, options: [.new]) { [weak self] webView, _ in
-            self?.progressView.progress = Float(webView.estimatedProgress)
-            self?.progressView.isHidden = webView.estimatedProgress == 1.0
+            guard let progressView = self?.progressView else { return }
+            progressView.progress = Float(webView.estimatedProgress)
+            progressView.isHidden = webView.estimatedProgress == 1.0
         }
     }
     
     // MARK: - Actions
     
     @IBAction func backButtonTapped(_ sender: UIBarButtonItem) {
-        if webView.canGoBack {
+        if webView?.canGoBack == true {
             webView.goBack()
         }
     }
-    
+
     @IBAction func forwardButtonTapped(_ sender: UIBarButtonItem) {
-        if webView.canGoForward {
+        if webView?.canGoForward == true {
             webView.goForward()
         }
     }
     
     @IBAction func refreshButtonTapped(_ sender: UIBarButtonItem) {
-        webView.reload()
+        webView?.reload()
     }
     
     @IBAction func homeButtonTapped(_ sender: UIBarButtonItem) {
@@ -227,8 +291,13 @@ class WebViewController: UIViewController {
     private func updateToolbarButtons() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.backButton.isEnabled = self.webView.canGoBack
-            self.forwardButton.isEnabled = self.webView.canGoForward
+            guard let webView = self.webView else {
+                self.backButton?.isEnabled = false
+                self.forwardButton?.isEnabled = false
+                return
+            }
+            self.backButton?.isEnabled = webView.canGoBack
+            self.forwardButton?.isEnabled = webView.canGoForward
         }
     }
     
@@ -244,12 +313,13 @@ class WebViewController: UIViewController {
 extension WebViewController: WKNavigationDelegate {
     
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        guard let progressView = progressView else { return }
         progressView.isHidden = false
         progressView.progress = 0.0
     }
-    
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        progressView.isHidden = true
+        progressView?.isHidden = true
         updateToolbarButtons()
 
         // Обновляем кнопки тулбара периодически
@@ -261,7 +331,7 @@ extension WebViewController: WKNavigationDelegate {
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        progressView.isHidden = true
+        progressView?.isHidden = true
         updateToolbarButtons()
         
         let nsError = error as NSError
@@ -288,7 +358,7 @@ extension WebViewController: WKNavigationDelegate {
     }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        progressView.isHidden = true
+        progressView?.isHidden = true
         updateToolbarButtons()
         
         let nsError = error as NSError
