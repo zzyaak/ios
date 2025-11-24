@@ -5,7 +5,6 @@ class WebViewController: UIViewController {
     
     @IBOutlet weak var webView: WKWebView!
     @IBOutlet weak var progressView: UIProgressView!
-    @IBOutlet weak var toolbar: UIToolbar!
     @IBOutlet weak var backButton: UIBarButtonItem!
     @IBOutlet weak var forwardButton: UIBarButtonItem!
     @IBOutlet weak var refreshButton: UIBarButtonItem!
@@ -14,6 +13,7 @@ class WebViewController: UIViewController {
     private var webURL = "https://proskomidiya.ru"
     private let localHTMLFileName = "index"
     private let localHTMLFileExtension = "html"
+    private lazy var mobileEnhancementScript: String? = loadEnhancementScript()
     private var estimatedProgressObserver: NSKeyValueObservation?
     
     override func viewDidLoad() {
@@ -127,6 +127,11 @@ class WebViewController: UIViewController {
     }
     
     private func setupToolbar() {
+        guard let toolbar = navigationController?.toolbar else {
+            print("⚠️ Toolbar недоступен у navigationController")
+            return
+        }
+
         toolbar.barTintColor = UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0)
         toolbar.tintColor = UIColor.white
         toolbar.isTranslucent = false
@@ -171,6 +176,20 @@ class WebViewController: UIViewController {
         request.timeoutInterval = 30.0
         
         webView.load(request)
+    }
+
+    private func loadEnhancementScript() -> String? {
+        guard let url = Bundle.main.url(forResource: "mobile_enhancements", withExtension: "js") else {
+            print("⚠️ Файл mobile_enhancements.js не найден в Bundle")
+            return nil
+        }
+
+        do {
+            return try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            print("⚠️ Не удалось загрузить mobile_enhancements.js: \(error)")
+            return nil
+        }
     }
     
     private func setupProgressObserver() {
@@ -232,11 +251,13 @@ extension WebViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         progressView.isHidden = true
         updateToolbarButtons()
-        
+
         // Обновляем кнопки тулбара периодически
         DispatchQueue.main.async { [weak self] in
             self?.updateToolbarButtons()
         }
+
+        injectMobileEnhancements()
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -327,6 +348,29 @@ extension WebViewController: WKNavigationDelegate {
         
         // Для других схем (tel:, mailto:, etc.) разрешаем
         decisionHandler(.allow)
+    }
+}
+
+// MARK: - Mobile Enhancements
+
+private extension WebViewController {
+    func injectMobileEnhancements() {
+        guard let script = mobileEnhancementScript, !script.isEmpty else {
+            return
+        }
+
+        webView.evaluateJavaScript(script) { result, error in
+            if let error {
+                print("⚠️ Ошибка применения мобильных улучшений: \(error)")
+                return
+            }
+
+            if let result = result {
+                print("✅ Мобильные улучшения применены: \(result)")
+            } else {
+                print("✅ Мобильные улучшения применены")
+            }
+        }
     }
 }
 
