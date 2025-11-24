@@ -5,7 +5,6 @@ class WebViewController: UIViewController {
     
     @IBOutlet weak var webView: WKWebView!
     @IBOutlet weak var progressView: UIProgressView!
-    @IBOutlet weak var toolbar: UIToolbar!
     @IBOutlet weak var backButton: UIBarButtonItem!
     @IBOutlet weak var forwardButton: UIBarButtonItem!
     @IBOutlet weak var refreshButton: UIBarButtonItem!
@@ -128,6 +127,11 @@ class WebViewController: UIViewController {
     }
     
     private func setupToolbar() {
+        guard let toolbar = navigationController?.toolbar else {
+            print("⚠️ Toolbar недоступен у navigationController")
+            return
+        }
+
         toolbar.barTintColor = UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0)
         toolbar.tintColor = UIColor.white
         toolbar.isTranslucent = false
