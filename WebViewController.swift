@@ -13,9 +13,15 @@ class WebViewController: UIViewController {
     private var webURL = "https://proskomidiya.ru"
     private let localHTMLFileName = "index"
     private let localHTMLFileExtension = "html"
+    private let fallbackHTMLString = """
+        <html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <style>body{font-family:-apple-system,HelveticaNeue;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f6f2ec;color:#4a2a12;text-align:center;padding:24px;} .card{max-width:420px;} h1{font-size:22px;margin-bottom:12px;} p{font-size:16px;line-height:1.4;}</style></head>
+        <body><div class='card'><h1>Контент временно недоступен</h1><p>Проверьте подключение к интернету или попробуйте ещё раз позже. Локальный ресурс не найден.</p></div></body></html>
+        """
     private lazy var mobileEnhancementScript: String? = loadEnhancementScript()
     private var estimatedProgressObserver: NSKeyValueObservation?
     private var createdSubviewsProgrammatically = false
+    private var embeddedToolbar: UIToolbar?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -36,6 +42,7 @@ class WebViewController: UIViewController {
         setupWebView()
         setupNavigationBar()
         setupToolbar()
+        ensureToolbarAvailability()
         loadLocalOrRemote()
         setupProgressObserver()
     }
@@ -58,6 +65,7 @@ class WebViewController: UIViewController {
             print("✅ Toolbar показан")
         } else {
             print("⚠️ NavigationController недоступен, toolbar не показан")
+            ensureToolbarAvailability()
         }
     }
     
@@ -206,6 +214,36 @@ class WebViewController: UIViewController {
 
         updateToolbarButtons()
     }
+
+    /// Гарантирует наличие тулбара даже без UINavigationController
+    private func ensureToolbarAvailability() {
+        if let navigationController {
+            navigationController.setToolbarHidden(false, animated: false)
+            return
+        }
+
+        // Создаём встроенный тулбар снизу, если нет навконтроллера
+        if embeddedToolbar == nil {
+            let toolbar = UIToolbar()
+            toolbar.translatesAutoresizingMaskIntoConstraints = false
+            toolbar.barTintColor = UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0)
+            toolbar.tintColor = .white
+            toolbar.isTranslucent = false
+            view.addSubview(toolbar)
+            embeddedToolbar = toolbar
+
+            let safeArea = view.safeAreaLayoutGuide
+            NSLayoutConstraint.activate([
+                toolbar.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+                toolbar.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+                toolbar.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
+            ])
+        }
+
+        let flexibleSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let items = [backButton, forwardButton, flexibleSpace, homeButton, refreshButton].compactMap { $0 }
+        embeddedToolbar?.setItems(items, animated: false)
+    }
     
     private func loadLocalOrRemote() {
         guard let webView = webView else {
@@ -232,11 +270,18 @@ class WebViewController: UIViewController {
             showErrorAlert(message: "Неверный URL")
             return
         }
-        
+
+        // Проверяем, разрешён ли домен (ATS/host)
+        if let host = url.host, !isAllowedHost(host) {
+            print("⚠️ Домен \(host) не входит в разрешённый список, показываем локальный фолбэк")
+            loadFallbackHTML()
+            return
+        }
+
         var request = URLRequest(url: url)
         request.cachePolicy = .returnCacheDataElseLoad
         request.timeoutInterval = 30.0
-        
+
         webView.load(request)
     }
 
@@ -306,6 +351,19 @@ class WebViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
     }
+
+    private func loadFallbackHTML() {
+        guard let webView else { return }
+        webView.loadHTMLString(fallbackHTMLString, baseURL: nil)
+        progressView?.isHidden = true
+        updateToolbarButtons()
+        print("⚠️ Загружен локальный фолбэк-контент")
+    }
+
+    private func isAllowedHost(_ host: String) -> Bool {
+        let allowedHosts = ["proskomidiya.ru", "same-assets.com", "localhost"]
+        return allowedHosts.contains(where: { host.contains($0) })
+    }
 }
 
 // MARK: - WKNavigationDelegate
@@ -341,8 +399,8 @@ extension WebViewController: WKNavigationDelegate {
         }
         
         // Попробуем загрузить локальный HTML при ошибке сети
-        if nsError.domain == NSURLErrorDomain && 
-           (nsError.code == NSURLErrorNotConnectedToInternet || 
+        if nsError.domain == NSURLErrorDomain &&
+           (nsError.code == NSURLErrorNotConnectedToInternet ||
             nsError.code == NSURLErrorTimedOut ||
             nsError.code == NSURLErrorNetworkConnectionLost) {
             if let htmlPath = Bundle.main.path(forResource: localHTMLFileName, ofType: localHTMLFileExtension),
@@ -352,8 +410,12 @@ extension WebViewController: WKNavigationDelegate {
                 print("✅ Переключено на локальный HTML из-за ошибки сети")
                 return
             }
+
+            // Локальный HTML отсутствует — показываем встроенный фолбэк
+            loadFallbackHTML()
+            return
         }
-        
+
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
     }
     
@@ -368,8 +430,8 @@ extension WebViewController: WKNavigationDelegate {
         }
         
         // Попробуем загрузить локальный HTML при ошибке сети
-        if nsError.domain == NSURLErrorDomain && 
-           (nsError.code == NSURLErrorNotConnectedToInternet || 
+        if nsError.domain == NSURLErrorDomain &&
+           (nsError.code == NSURLErrorNotConnectedToInternet ||
             nsError.code == NSURLErrorTimedOut ||
             nsError.code == NSURLErrorNetworkConnectionLost) {
             if let htmlPath = Bundle.main.path(forResource: localHTMLFileName, ofType: localHTMLFileExtension),
@@ -379,8 +441,11 @@ extension WebViewController: WKNavigationDelegate {
                 print("✅ Переключено на локальный HTML из-за ошибки сети")
                 return
             }
+
+            loadFallbackHTML()
+            return
         }
-        
+
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
     }
     
