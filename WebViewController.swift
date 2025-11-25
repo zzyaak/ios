@@ -5,34 +5,44 @@ class WebViewController: UIViewController {
     
     @IBOutlet weak var webView: WKWebView!
     @IBOutlet weak var progressView: UIProgressView!
-    @IBOutlet weak var toolbar: UIToolbar!
     @IBOutlet weak var backButton: UIBarButtonItem!
     @IBOutlet weak var forwardButton: UIBarButtonItem!
     @IBOutlet weak var refreshButton: UIBarButtonItem!
     @IBOutlet weak var homeButton: UIBarButtonItem!
-    
+
     private var webURL = "https://proskomidiya.ru"
     private let localHTMLFileName = "index"
     private let localHTMLFileExtension = "html"
+    private let fallbackHTMLString = """
+        <html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <style>body{font-family:-apple-system,HelveticaNeue;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f6f2ec;color:#4a2a12;text-align:center;padding:24px;} .card{max-width:420px;} h1{font-size:22px;margin-bottom:12px;} p{font-size:16px;line-height:1.4;}</style></head>
+        <body><div class='card'><h1>Контент временно недоступен</h1><p>Проверьте подключение к интернету или попробуйте ещё раз позже. Локальный ресурс не найден.</p></div></body></html>
+        """
+    private lazy var mobileEnhancementScript: String? = loadEnhancementScript()
     private var estimatedProgressObserver: NSKeyValueObservation?
+    private var createdSubviewsProgrammatically = false
+    private var embeddedToolbar: UIToolbar?
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         // Устанавливаем цвет фона view
         view.backgroundColor = UIColor.systemBackground
-        
-        // Проверяем, что outlets подключены
-        guard webView != nil else {
-            print("❌ ОШИБКА: webView outlet не подключен!")
+
+        // Создаём недостающие вью программно, если аутлеты не подтянуты в storyboard
+        buildFallbackSubviewsIfNeeded()
+
+        guard webView != nil, progressView != nil else {
+            print("❌ ОШИБКА: webView или progressView недоступны даже после создания — проверьте storyboard")
             return
         }
-        
+
         print("✅ WebViewController загружен, webView доступен")
-        
+
         setupWebView()
         setupNavigationBar()
         setupToolbar()
+        ensureToolbarAvailability()
         loadLocalOrRemote()
         setupProgressObserver()
     }
@@ -55,6 +65,7 @@ class WebViewController: UIViewController {
             print("✅ Toolbar показан")
         } else {
             print("⚠️ NavigationController недоступен, toolbar не показан")
+            ensureToolbarAvailability()
         }
     }
     
@@ -64,17 +75,71 @@ class WebViewController: UIViewController {
     }
     
     // MARK: - Setup Methods
+
+    /// Создаёт WKWebView, UIProgressView и элементы тулбара, если они не были подключены в storyboard.
+    private func buildFallbackSubviewsIfNeeded() {
+        if webView == nil {
+            let configuration = WKWebViewConfiguration()
+            configuration.allowsInlineMediaPlayback = true
+            configuration.mediaTypesRequiringUserActionForPlayback = []
+
+            let createdWebView = WKWebView(frame: .zero, configuration: configuration)
+            createdWebView.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(createdWebView)
+            webView = createdWebView
+            print("⚠️ WKWebView создан программно — проверьте аутлет в storyboard")
+            createdSubviewsProgrammatically = true
+        }
+
+        if progressView == nil {
+            let createdProgressView = UIProgressView(progressViewStyle: .default)
+            createdProgressView.translatesAutoresizingMaskIntoConstraints = false
+            createdProgressView.progressTintColor = UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0)
+            view.addSubview(createdProgressView)
+            progressView = createdProgressView
+            print("⚠️ ProgressView создан программно — проверьте аутлет в storyboard")
+            createdSubviewsProgrammatically = true
+        }
+
+        guard let webView = webView, let progressView = progressView else { return }
+
+        // Добавляем констрейнты только если создавали элементы программно (иначе они уже в storyboard)
+        if createdSubviewsProgrammatically {
+            let safeArea = view.safeAreaLayoutGuide
+            NSLayoutConstraint.activate([
+                progressView.topAnchor.constraint(equalTo: safeArea.topAnchor),
+                progressView.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+                progressView.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+                progressView.heightAnchor.constraint(equalToConstant: 2),
+
+                webView.topAnchor.constraint(equalTo: progressView.bottomAnchor),
+                webView.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+                webView.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+                webView.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
+            ])
+        }
+
+        // Создаём кнопки тулбара программно, если они не пришли из storyboard
+        if backButton == nil {
+            backButton = UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(backButtonTapped(_:)))
+        }
+        if forwardButton == nil {
+            forwardButton = UIBarButtonItem(image: UIImage(systemName: "chevron.right"), style: .plain, target: self, action: #selector(forwardButtonTapped(_:)))
+        }
+        if homeButton == nil {
+            homeButton = UIBarButtonItem(image: UIImage(systemName: "house"), style: .plain, target: self, action: #selector(homeButtonTapped(_:)))
+        }
+        if refreshButton == nil {
+            refreshButton = UIBarButtonItem(barButtonSystemItem: .refresh, target: self, action: #selector(refreshButtonTapped(_:)))
+        }
+    }
     
     private func setupWebView() {
         guard let webView = webView else {
             print("❌ ОШИБКА: webView равен nil при настройке!")
             return
         }
-        
-        let configuration = WKWebViewConfiguration()
-        configuration.allowsInlineMediaPlayback = true
-        configuration.mediaTypesRequiringUserActionForPlayback = []
-        
+
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
@@ -127,17 +192,57 @@ class WebViewController: UIViewController {
     }
     
     private func setupToolbar() {
+        guard let toolbar = navigationController?.toolbar else {
+            print("⚠️ Toolbar недоступен у navigationController")
+            return
+        }
+
         toolbar.barTintColor = UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0)
         toolbar.tintColor = UIColor.white
         toolbar.isTranslucent = false
         
-        // Set button images
-        backButton.image = UIImage(systemName: "chevron.left")
-        forwardButton.image = UIImage(systemName: "chevron.right")
-        refreshButton.image = UIImage(systemName: "arrow.clockwise")
-        homeButton.image = UIImage(systemName: "house")
-        
+        // Set button images and assemble items
+        backButton?.image = UIImage(systemName: "chevron.left")
+        forwardButton?.image = UIImage(systemName: "chevron.right")
+        refreshButton?.image = UIImage(systemName: "arrow.clockwise")
+        homeButton?.image = UIImage(systemName: "house")
+
+        let flexibleSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let items = [backButton, forwardButton, flexibleSpace, homeButton, refreshButton].compactMap { $0 }
+        setToolbarItems(items, animated: false)
+        toolbar.setItems(items, animated: false)
+
         updateToolbarButtons()
+    }
+
+    /// Гарантирует наличие тулбара даже без UINavigationController
+    private func ensureToolbarAvailability() {
+        if let navigationController {
+            navigationController.setToolbarHidden(false, animated: false)
+            return
+        }
+
+        // Создаём встроенный тулбар снизу, если нет навконтроллера
+        if embeddedToolbar == nil {
+            let toolbar = UIToolbar()
+            toolbar.translatesAutoresizingMaskIntoConstraints = false
+            toolbar.barTintColor = UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0)
+            toolbar.tintColor = .white
+            toolbar.isTranslucent = false
+            view.addSubview(toolbar)
+            embeddedToolbar = toolbar
+
+            let safeArea = view.safeAreaLayoutGuide
+            NSLayoutConstraint.activate([
+                toolbar.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+                toolbar.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+                toolbar.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
+            ])
+        }
+
+        let flexibleSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let items = [backButton, forwardButton, flexibleSpace, homeButton, refreshButton].compactMap { $0 }
+        embeddedToolbar?.setItems(items, animated: false)
     }
     
     private func loadLocalOrRemote() {
@@ -165,37 +270,60 @@ class WebViewController: UIViewController {
             showErrorAlert(message: "Неверный URL")
             return
         }
-        
+
+        // Проверяем, разрешён ли домен (ATS/host)
+        if let host = url.host, !isAllowedHost(host) {
+            print("⚠️ Домен \(host) не входит в разрешённый список, показываем локальный фолбэк")
+            loadFallbackHTML()
+            return
+        }
+
         var request = URLRequest(url: url)
         request.cachePolicy = .returnCacheDataElseLoad
         request.timeoutInterval = 30.0
-        
+
         webView.load(request)
+    }
+
+    private func loadEnhancementScript() -> String? {
+        guard let url = Bundle.main.url(forResource: "mobile_enhancements", withExtension: "js") else {
+            print("⚠️ Файл mobile_enhancements.js не найден в Bundle")
+            return nil
+        }
+
+        do {
+            return try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            print("⚠️ Не удалось загрузить mobile_enhancements.js: \(error)")
+            return nil
+        }
     }
     
     private func setupProgressObserver() {
+        guard let webView = webView else { return }
         estimatedProgressObserver = webView.observe(\.estimatedProgress, options: [.new]) { [weak self] webView, _ in
-            self?.progressView.progress = Float(webView.estimatedProgress)
-            self?.progressView.isHidden = webView.estimatedProgress == 1.0
+            guard let progressView = self?.progressView else { return }
+            progressView.progress = Float(webView.estimatedProgress)
+            progressView.isHidden = webView.estimatedProgress == 1.0
         }
     }
     
     // MARK: - Actions
     
     @IBAction func backButtonTapped(_ sender: UIBarButtonItem) {
-        if webView.canGoBack {
+        if webView?.canGoBack == true {
             webView.goBack()
         }
     }
-    
+
     @IBAction func forwardButtonTapped(_ sender: UIBarButtonItem) {
-        if webView.canGoForward {
+        if webView?.canGoForward == true {
             webView.goForward()
         }
     }
     
     @IBAction func refreshButtonTapped(_ sender: UIBarButtonItem) {
-        webView.reload()
+        webView?.reload()
     }
     
     @IBAction func homeButtonTapped(_ sender: UIBarButtonItem) {
@@ -208,8 +336,13 @@ class WebViewController: UIViewController {
     private func updateToolbarButtons() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.backButton.isEnabled = self.webView.canGoBack
-            self.forwardButton.isEnabled = self.webView.canGoForward
+            guard let webView = self.webView else {
+                self.backButton?.isEnabled = false
+                self.forwardButton?.isEnabled = false
+                return
+            }
+            self.backButton?.isEnabled = webView.canGoBack
+            self.forwardButton?.isEnabled = webView.canGoForward
         }
     }
     
@@ -218,6 +351,19 @@ class WebViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
     }
+
+    private func loadFallbackHTML() {
+        guard let webView else { return }
+        webView.loadHTMLString(fallbackHTMLString, baseURL: nil)
+        progressView?.isHidden = true
+        updateToolbarButtons()
+        print("⚠️ Загружен локальный фолбэк-контент")
+    }
+
+    private func isAllowedHost(_ host: String) -> Bool {
+        let allowedHosts = ["proskomidiya.ru", "same-assets.com", "localhost"]
+        return allowedHosts.contains(where: { host.contains($0) })
+    }
 }
 
 // MARK: - WKNavigationDelegate
@@ -225,22 +371,25 @@ class WebViewController: UIViewController {
 extension WebViewController: WKNavigationDelegate {
     
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        guard let progressView = progressView else { return }
         progressView.isHidden = false
         progressView.progress = 0.0
     }
-    
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        progressView.isHidden = true
+        progressView?.isHidden = true
         updateToolbarButtons()
-        
+
         // Обновляем кнопки тулбара периодически
         DispatchQueue.main.async { [weak self] in
             self?.updateToolbarButtons()
         }
+
+        injectMobileEnhancements()
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        progressView.isHidden = true
+        progressView?.isHidden = true
         updateToolbarButtons()
         
         let nsError = error as NSError
@@ -250,8 +399,8 @@ extension WebViewController: WKNavigationDelegate {
         }
         
         // Попробуем загрузить локальный HTML при ошибке сети
-        if nsError.domain == NSURLErrorDomain && 
-           (nsError.code == NSURLErrorNotConnectedToInternet || 
+        if nsError.domain == NSURLErrorDomain &&
+           (nsError.code == NSURLErrorNotConnectedToInternet ||
             nsError.code == NSURLErrorTimedOut ||
             nsError.code == NSURLErrorNetworkConnectionLost) {
             if let htmlPath = Bundle.main.path(forResource: localHTMLFileName, ofType: localHTMLFileExtension),
@@ -261,13 +410,17 @@ extension WebViewController: WKNavigationDelegate {
                 print("✅ Переключено на локальный HTML из-за ошибки сети")
                 return
             }
+
+            // Локальный HTML отсутствует — показываем встроенный фолбэк
+            loadFallbackHTML()
+            return
         }
-        
+
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
     }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        progressView.isHidden = true
+        progressView?.isHidden = true
         updateToolbarButtons()
         
         let nsError = error as NSError
@@ -277,8 +430,8 @@ extension WebViewController: WKNavigationDelegate {
         }
         
         // Попробуем загрузить локальный HTML при ошибке сети
-        if nsError.domain == NSURLErrorDomain && 
-           (nsError.code == NSURLErrorNotConnectedToInternet || 
+        if nsError.domain == NSURLErrorDomain &&
+           (nsError.code == NSURLErrorNotConnectedToInternet ||
             nsError.code == NSURLErrorTimedOut ||
             nsError.code == NSURLErrorNetworkConnectionLost) {
             if let htmlPath = Bundle.main.path(forResource: localHTMLFileName, ofType: localHTMLFileExtension),
@@ -288,8 +441,11 @@ extension WebViewController: WKNavigationDelegate {
                 print("✅ Переключено на локальный HTML из-за ошибки сети")
                 return
             }
+
+            loadFallbackHTML()
+            return
         }
-        
+
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
     }
     
@@ -327,6 +483,29 @@ extension WebViewController: WKNavigationDelegate {
         
         // Для других схем (tel:, mailto:, etc.) разрешаем
         decisionHandler(.allow)
+    }
+}
+
+// MARK: - Mobile Enhancements
+
+private extension WebViewController {
+    func injectMobileEnhancements() {
+        guard let script = mobileEnhancementScript, !script.isEmpty else {
+            return
+        }
+
+        webView.evaluateJavaScript(script) { result, error in
+            if let error {
+                print("⚠️ Ошибка применения мобильных улучшений: \(error)")
+                return
+            }
+
+            if let result = result {
+                print("✅ Мобильные улучшения применены: \(result)")
+            } else {
+                print("✅ Мобильные улучшения применены")
+            }
+        }
     }
 }
 
