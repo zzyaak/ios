@@ -391,13 +391,13 @@ extension WebViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         progressView?.isHidden = true
         updateToolbarButtons()
-        
+
         let nsError = error as NSError
         // Не показываем ошибку для отменённых запросов
         if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
             return
         }
-        
+
         // Попробуем загрузить локальный HTML при ошибке сети
         if nsError.domain == NSURLErrorDomain &&
            (nsError.code == NSURLErrorNotConnectedToInternet ||
@@ -416,19 +416,21 @@ extension WebViewController: WKNavigationDelegate {
             return
         }
 
+        // Для любых других ошибок также показываем фолбэк, чтобы избежать пустого экрана
+        loadFallbackHTML()
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
     }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         progressView?.isHidden = true
         updateToolbarButtons()
-        
+
         let nsError = error as NSError
         // Не показываем ошибку для отменённых запросов
         if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
             return
         }
-        
+
         // Попробуем загрузить локальный HTML при ошибке сети
         if nsError.domain == NSURLErrorDomain &&
            (nsError.code == NSURLErrorNotConnectedToInternet ||
@@ -446,6 +448,8 @@ extension WebViewController: WKNavigationDelegate {
             return
         }
 
+        // Для любых других ошибок также показываем фолбэк, чтобы избежать пустого экрана
+        loadFallbackHTML()
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
     }
     
