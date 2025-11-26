@@ -18,15 +18,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Создаём window явно для надёжности
         window = UIWindow(windowScene: windowScene)
         
-        // Загружаем главный view controller из storyboard
+        // Загружаем главный view controller из storyboard, иначе создаём программно
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
-        guard let initialViewController = storyboard.instantiateInitialViewController() else {
-            print("❌ ОШИБКА: Не удалось загрузить initial view controller из Main.storyboard")
-            return
+        let storyboardInitialVC = storyboard.instantiateInitialViewController()
+        let initialViewController = storyboardInitialVC ?? WebViewController()
+
+        if storyboardInitialVC == nil {
+            print("⚠️ Main.storyboard не содержит Initial VC — создан WebViewController программно")
+        } else {
+            print("✅ SceneDelegate: Initial view controller загружен: \(type(of: initialViewController))")
         }
-        
-        print("✅ SceneDelegate: Initial view controller загружен: \(type(of: initialViewController))")
-        
+
         // Если нужен NavigationController, оборачиваем в него
         if !(initialViewController is UINavigationController) {
             let navigationController = UINavigationController(rootViewController: initialViewController)
