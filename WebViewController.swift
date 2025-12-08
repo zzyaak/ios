@@ -4,7 +4,7 @@ import WebKit
 class WebViewController: UIViewController {
 
     private func log(_ message: String) {
-        print("🪵 [WebViewController] \(message)")
+        AppLogger.log("[WebViewController] \(message)")
     }
     
     @IBOutlet weak var webView: WKWebView!
@@ -29,7 +29,7 @@ class WebViewController: UIViewController {
 
         // Проверяем, что outlets подключены
         guard webView != nil else {
-            log("❌ ОШИБКА: webView outlet не подключен!")
+            AppLogger.error("[WebViewController] ОШИБКА: webView outlet не подключен!")
             return
         }
 
@@ -72,7 +72,7 @@ class WebViewController: UIViewController {
     
     private func setupWebView() {
         guard let webView = webView else {
-            log("❌ ОШИБКА: webView равен nil при настройке!")
+            AppLogger.error("[WebViewController] ОШИБКА: webView равен nil при настройке!")
             return
         }
         
@@ -152,7 +152,7 @@ class WebViewController: UIViewController {
     
     private func loadLocalOrRemote() {
         guard let webView = webView else {
-            log("❌ ОШИБКА: webView равен nil при загрузке!")
+            AppLogger.error("[WebViewController] ОШИБКА: webView равен nil при загрузке!")
             return
         }
         
@@ -283,7 +283,7 @@ extension WebViewController: WKNavigationDelegate {
         }
 
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
-        log("❌ Ошибка навигации: \(error.localizedDescription)")
+        AppLogger.error("[WebViewController] Ошибка навигации: \(error.localizedDescription)")
     }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -311,7 +311,7 @@ extension WebViewController: WKNavigationDelegate {
         }
 
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
-        log("❌ Ошибка provisional навигации: \(error.localizedDescription)")
+        AppLogger.error("[WebViewController] Ошибка provisional навигации: \(error.localizedDescription)")
     }
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
