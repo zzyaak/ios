@@ -71,7 +71,6 @@
                         <outlet property="homeButton" destination="homeButton" id="homeButton-outlet"/>
                         <outlet property="progressView" destination="progressView" id="progressView-outlet"/>
                         <outlet property="refreshButton" destination="refreshButton" id="refreshButton-outlet"/>
-                        <outlet property="toolbar" destination="toolbar" id="toolbar-outlet"/>
                         <outlet property="webView" destination="webView" id="webView-outlet"/>
                     </connections>
                 </viewController>

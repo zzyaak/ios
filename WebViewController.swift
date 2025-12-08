@@ -2,10 +2,13 @@ import UIKit
 import WebKit
 
 class WebViewController: UIViewController {
+
+    private func log(_ message: String) {
+        AppLogger.log("[WebViewController] \(message)")
+    }
     
     @IBOutlet weak var webView: WKWebView!
     @IBOutlet weak var progressView: UIProgressView!
-    @IBOutlet weak var toolbar: UIToolbar!
     @IBOutlet weak var backButton: UIBarButtonItem!
     @IBOutlet weak var forwardButton: UIBarButtonItem!
     @IBOutlet weak var refreshButton: UIBarButtonItem!
@@ -22,13 +25,15 @@ class WebViewController: UIViewController {
         // Устанавливаем цвет фона view
         view.backgroundColor = UIColor.systemBackground
         
+        log("viewDidLoad вызван")
+
         // Проверяем, что outlets подключены
         guard webView != nil else {
-            print("❌ ОШИБКА: webView outlet не подключен!")
+            AppLogger.error("[WebViewController] ОШИБКА: webView outlet не подключен!")
             return
         }
-        
-        print("✅ WebViewController загружен, webView доступен")
+
+        log("✅ WebViewController загружен, webView доступен")
         
         setupWebView()
         setupNavigationBar()
@@ -39,22 +44,22 @@ class WebViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        print("✅ WebViewController viewDidAppear вызван")
+        log("viewDidAppear вызван")
         
         // Убеждаемся, что view видима
         view.isHidden = false
         view.alpha = 1.0
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // Показываем toolbar, если NavigationController доступен
         if let navigationController = navigationController {
             navigationController.setToolbarHidden(false, animated: animated)
             navigationController.isToolbarHidden = false
-            print("✅ Toolbar показан")
+            log("✅ Toolbar показан")
         } else {
-            print("⚠️ NavigationController недоступен, toolbar не показан")
+            log("⚠️ NavigationController недоступен, toolbar не показан")
         }
     }
     
@@ -67,7 +72,7 @@ class WebViewController: UIViewController {
     
     private func setupWebView() {
         guard let webView = webView else {
-            print("❌ ОШИБКА: webView равен nil при настройке!")
+            AppLogger.error("[WebViewController] ОШИБКА: webView равен nil при настройке!")
             return
         }
         
@@ -91,7 +96,7 @@ class WebViewController: UIViewController {
         // User agent
         webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"
         
-        print("✅ WebView настроен успешно")
+        log("✅ WebView настроен успешно")
     }
     
     private func setupNavigationBar() {
@@ -125,8 +130,13 @@ class WebViewController: UIViewController {
         )
         navigationItem.rightBarButtonItem = refreshBarButton
     }
-    
+
     private func setupToolbar() {
+        guard let toolbar = navigationController?.toolbar else {
+            log("⚠️ Toolbar недоступен у NavigationController")
+            return
+        }
+
         toolbar.barTintColor = UIColor(red: 0.545, green: 0.271, blue: 0.075, alpha: 1.0)
         toolbar.tintColor = UIColor.white
         toolbar.isTranslucent = false
@@ -142,7 +152,7 @@ class WebViewController: UIViewController {
     
     private func loadLocalOrRemote() {
         guard let webView = webView else {
-            print("❌ ОШИБКА: webView равен nil при загрузке!")
+            AppLogger.error("[WebViewController] ОШИБКА: webView равен nil при загрузке!")
             return
         }
         
@@ -152,10 +162,10 @@ class WebViewController: UIViewController {
             // Загружаем локальный HTML
             let baseURL = URL(fileURLWithPath: Bundle.main.bundlePath)
             webView.loadHTMLString(htmlString, baseURL: baseURL)
-            print("✅ Загружен локальный HTML из Bundle")
+            log("✅ Загружен локальный HTML из Bundle из пути: \(htmlPath)")
         } else {
             // Если локальный файл не найден, загружаем из интернета
-            print("⚠️ Локальный HTML не найден, загружаем из интернета")
+            log("⚠️ Локальный HTML не найден, загружаем из интернета")
             loadWebsite()
         }
     }
@@ -170,6 +180,7 @@ class WebViewController: UIViewController {
         request.cachePolicy = .returnCacheDataElseLoad
         request.timeoutInterval = 30.0
         
+        log("🌐 Загружаем страницу: \(url.absoluteString)")
         webView.load(request)
     }
     
@@ -177,6 +188,7 @@ class WebViewController: UIViewController {
         estimatedProgressObserver = webView.observe(\.estimatedProgress, options: [.new]) { [weak self] webView, _ in
             self?.progressView.progress = Float(webView.estimatedProgress)
             self?.progressView.isHidden = webView.estimatedProgress == 1.0
+            self?.log("⬆️ Прогресс загрузки: \(webView.estimatedProgress)")
         }
     }
     
@@ -185,22 +197,26 @@ class WebViewController: UIViewController {
     @IBAction func backButtonTapped(_ sender: UIBarButtonItem) {
         if webView.canGoBack {
             webView.goBack()
+            log("⬅️ Назад")
         }
     }
     
     @IBAction func forwardButtonTapped(_ sender: UIBarButtonItem) {
         if webView.canGoForward {
             webView.goForward()
+            log("➡️ Вперёд")
         }
     }
     
     @IBAction func refreshButtonTapped(_ sender: UIBarButtonItem) {
         webView.reload()
+        log("🔄 Обновление страницы")
     }
     
     @IBAction func homeButtonTapped(_ sender: UIBarButtonItem) {
         // Сбрасываем на главную страницу
         loadLocalOrRemote()
+        log("🏠 Возврат на главную")
     }
     
     // MARK: - Helper Methods
@@ -210,6 +226,7 @@ class WebViewController: UIViewController {
             guard let self = self else { return }
             self.backButton.isEnabled = self.webView.canGoBack
             self.forwardButton.isEnabled = self.webView.canGoForward
+            self.log("🔘 Статус кнопок: назад=\(self.backButton.isEnabled) вперёд=\(self.forwardButton.isEnabled)")
         }
     }
     
@@ -227,11 +244,13 @@ extension WebViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         progressView.isHidden = false
         progressView.progress = 0.0
+        log("⏳ Началась загрузка: \(String(describing: navigation))")
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         progressView.isHidden = true
         updateToolbarButtons()
+        log("✅ Загрузка завершена")
         
         // Обновляем кнопки тулбара периодически
         DispatchQueue.main.async { [weak self] in
@@ -258,12 +277,13 @@ extension WebViewController: WKNavigationDelegate {
                let htmlString = try? String(contentsOfFile: htmlPath, encoding: .utf8) {
                 let baseURL = URL(fileURLWithPath: Bundle.main.bundlePath)
                 webView.loadHTMLString(htmlString, baseURL: baseURL)
-                print("✅ Переключено на локальный HTML из-за ошибки сети")
+                log("✅ Переключено на локальный HTML из-за ошибки сети: \(nsError.localizedDescription)")
                 return
             }
         }
-        
+
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
+        AppLogger.error("[WebViewController] Ошибка навигации: \(error.localizedDescription)")
     }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -285,12 +305,13 @@ extension WebViewController: WKNavigationDelegate {
                let htmlString = try? String(contentsOfFile: htmlPath, encoding: .utf8) {
                 let baseURL = URL(fileURLWithPath: Bundle.main.bundlePath)
                 webView.loadHTMLString(htmlString, baseURL: baseURL)
-                print("✅ Переключено на локальный HTML из-за ошибки сети")
+                log("✅ Переключено на локальный HTML из-за ошибки сети: \(nsError.localizedDescription)")
                 return
             }
         }
-        
+
         showErrorAlert(message: "Ошибка загрузки: \(error.localizedDescription)")
+        AppLogger.error("[WebViewController] Ошибка provisional навигации: \(error.localizedDescription)")
     }
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -309,6 +330,7 @@ extension WebViewController: WKNavigationDelegate {
                host.contains("same-assets.com") ||
                host.contains("localhost") ||
                url.scheme == "file" {
+                log("✅ Разрешена навигация на URL: \(url.absoluteString)")
                 decisionHandler(.allow)
                 return
             }
@@ -321,11 +343,13 @@ extension WebViewController: WKNavigationDelegate {
             } else {
                 UIApplication.shared.openURL(url)
             }
+            log("🌐 Открываем внешнюю ссылку в Safari: \(url.absoluteString)")
             decisionHandler(.cancel)
             return
         }
         
         // Для других схем (tel:, mailto:, etc.) разрешаем
+        log("✅ Разрешена навигация по схеме \(url.scheme ?? "unknown"): \(url.absoluteString)")
         decisionHandler(.allow)
     }
 }
@@ -338,6 +362,7 @@ extension WebViewController: WKUIDelegate {
         if navigationAction.targetFrame == nil {
             webView.load(navigationAction.request)
         }
+        log("🪟 Открываем всплывающее окно в том же WebView для URL: \(navigationAction.request.url?.absoluteString ?? "unknown")")
         return nil
     }
     
